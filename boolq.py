@@ -10,6 +10,7 @@ import argparse
 import subprocess
 import os
 import openai
+import requests
 
 class BoolQADataset(torch.utils.data.Dataset):
     """
@@ -162,6 +163,78 @@ def q4():
     print("\nCorrectly Labelled:", numCorrect)
     print("Accuracy:", numCorrect / numInstances)
 
+def q5():
+    API_URL = "https://api-inference.huggingface.co/models/bigscience/bloomz"
+    headers = {"Authorization": f"Bearer {os.getenv('BLOOMZ_API_TOKEN')}"}
+
+    def query(payload):
+        response = requests.post(API_URL, headers=headers, json=payload)
+        return response.json()
+
+    dataset = load_dataset("boolq")
+    dataset = dataset.shuffle()  # shuffle the data
+    
+    dataset_train_subset = dataset['train'][:200]
+
+    print("Size of the loaded dataset:")
+    print(f" - train: {len(dataset_train_subset['passage'])}")
+
+    passages = list(dataset_train_subset['passage'])
+    questions = list(dataset_train_subset['question'])
+    answers = list(dataset_train_subset['answer'])
+
+    # Put in for loop 30 times and call api each time
+    # Lists for debugging
+    listOfPassages = []
+    listOfQuestions = []
+    listOfAnswers = []
+    basePrompt = ""
+
+    previousAnswer = True
+    iterator = 0
+
+
+    # # Create list of p, q, a, s.t. answers alternate between true and false
+    while len(listOfAnswers) < 4:
+        if answers[iterator] != previousAnswer:
+            listOfAnswers.append(answers[iterator])
+            listOfPassages.append(passages[iterator])
+            listOfQuestions.append(questions[iterator])
+            
+            # Build prompt w 8 demonstrations
+            basePrompt += "Passage: " + passages[iterator] + "\n"
+            basePrompt += "Question: " + questions[iterator] + "\n"
+            basePrompt += str(answers[iterator]) + "\n"
+            basePrompt += "\n"
+
+            previousAnswer = answers[iterator]
+        
+        iterator += 1
+
+    numCorrect = 0
+    numInstances = 100
+
+    # Now loop over next 30 instances and feed into api
+    for i in range(numInstances):
+        prompt = basePrompt + "Passage: " + passages[iterator + i] + "\n" + "Question: " + questions[iterator + i] + "\n"
+        output = query({
+            "inputs": prompt,
+        })
+
+        completion = output[0]["generated_text"].split()[-1] # Get only the last word
+        print("Completion:", completion)
+        print("Answer:", str(answers[iterator + i]))
+
+        if completion == str(answers[iterator + i]):
+            numCorrect += 1
+
+    print("\n")
+    print("\nCorrectly Labelled:", numCorrect)
+    print("Accuracy:", numCorrect / numInstances)
+        
+    
+
 # the entry point of the program
 if __name__ == "__main__":
     q4()
+    q5()
