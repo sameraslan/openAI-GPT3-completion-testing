@@ -101,8 +101,7 @@ def openAICall(model, prompt):
 
     return response
 
-# the entry point of the program
-if __name__ == "__main__":
+def q4():
     dataset = load_dataset("boolq")
     dataset = dataset.shuffle()  # shuffle the data
     
@@ -146,9 +145,10 @@ if __name__ == "__main__":
 
     print(basePrompt)
     numCorrect = 0
+    numInstances = 30
 
     # Now loop over next 30 instances and feed into api
-    for i in range(30):
+    for i in range(numInstances):
         prompt = basePrompt + "Passage: " + passages[iterator + i] + "\n" + "Question: " + questions[iterator + i] + "\n"
         print(prompt)
         completion = openAICall("davinci", prompt)
@@ -160,4 +160,8 @@ if __name__ == "__main__":
 
     print("\n")
     print("\nCorrectly Labelled:", numCorrect)
-    print("Accuracy:", numCorrect / 30)
+    print("Accuracy:", numCorrect / numInstances)
+
+# the entry point of the program
+if __name__ == "__main__":
+    q4()
